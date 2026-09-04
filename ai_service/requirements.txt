@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+pillow==10.4.0
+numpy==1.26.4
+
+# Uncomment once you're ready to train/run the real model.
+# Kept out of the default build so the whole stack still boots on a
+# laptop without a GPU or a multi-GB torch download during development.
+# ultralytics==8.2.103
+# torch==2.4.1

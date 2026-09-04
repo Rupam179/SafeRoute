@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: saferoute-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: saferoute
+      POSTGRES_PASSWORD: saferoute
+      POSTGRES_DB: saferoute
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saferoute -d saferoute"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend
+    container_name: saferoute-osrm
+    restart: unless-stopped
+    # Requires pre-processed data — run `bash scripts/setup_osrm.sh` first.
+    # See that script and docs/DEPLOYMENT.md for the one-time setup.
+    command: >
+      osrm-routed --algorithm mld /data/region.osrm
+    volumes:
+      - ./osrm-data:/data:ro
+    ports:
+      - "5001:5000"
+
+  ai_service:
+    build: ./ai_service
+    container_name: saferoute-ai
+    restart: unless-stopped
+    volumes:
+      - ./ai_service/weights:/app/weights:ro
+    ports:
+      - "8500:8500"
+
+  backend:
+    build: ./backend
+    container_name: saferoute-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://saferoute:saferoute@db:5432/saferoute
+      OSRM_BASE_URL: http://osrm:5000
+      AI_SERVICE_URL: http://ai_service:8500
+      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://localhost"]'
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: saferoute-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  db_data:

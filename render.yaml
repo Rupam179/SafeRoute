@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: saferoute-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: OSRM_BASE_URL
+        value: https://router.project-osrm.org
+      - key: AI_SERVICE_URL
+        value: http://localhost:8500
