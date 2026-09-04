@@ -1,11 +1,34 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.config import settings
-from app.database import Base, engine
+from app.database import Base, engine, SessionLocal
 from app.routers import routes, risk_signals, crowd_reports, analytics, damage_detection
 
-Base.metadata.create_all(bind=engine)
+
+def run_schema():
+    """Run init.sql on startup — safe to run multiple times (IF NOT EXISTS)."""
+    sql_path = Path(__file__).resolve().parents[3] / "db" / "init.sql"
+    if not sql_path.exists():
+        # fallback: just create ORM tables
+        Base.metadata.create_all(bind=engine)
+        return
+    sql = sql_path.read_text()
+    with engine.connect() as conn:
+        # run each statement separately to avoid issues with multi-statement execution
+        for statement in sql.split(";"):
+            stmt = statement.strip()
+            if stmt:
+                try:
+                    conn.execute(text(stmt))
+                except Exception:
+                    pass  # IF NOT EXISTS guards handle duplicates
+        conn.commit()
+
+
+run_schema()
 
 app = FastAPI(
     title="SafeRoute API",
